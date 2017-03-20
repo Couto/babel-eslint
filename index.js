@@ -1,5 +1,5 @@
 var babylonToEspree = require("./babylon-to-espree");
-var pick            = require("lodash.pickby");
+var pick            = require("lodash").pickBy;
 var Module          = require("module");
 var path            = require("path");
 var parse           = require("babylon").parse;
@@ -176,6 +176,18 @@ function monkeypatch() {
     }
   }
 
+  function visitTypeParameters(typeParameters) {
+    var params = typeParameters.params;
+
+    // visit bounds on polymorphpic types, eg; `Foo` in `fn<T: Foo>(a: T): T`
+    for (var i = 0; i < params.length; i++) {
+      var param = params[i];
+      if (param.typeAnnotation) {
+        visitTypeAnnotation.call(this, param.typeAnnotation);
+      }
+    }
+  }
+
   function checkIdentifierOrVisit(node) {
     if (node.typeAnnotation) {
       visitTypeAnnotation.call(this, node.typeAnnotation);
@@ -249,6 +261,7 @@ function monkeypatch() {
     var typeParamScope;
     if (node.typeParameters) {
       typeParamScope = nestTypeParamScope(this.scopeManager, node);
+      visitTypeParameters.call(this, node.typeParameters);
     }
     if (node.returnType) {
       checkIdentifierOrVisit.call(this, node.returnType);
